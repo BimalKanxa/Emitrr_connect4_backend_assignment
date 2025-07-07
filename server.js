@@ -12,6 +12,7 @@ const sequelize = require('./sockets/config/sequelize');
 const { initKafka } = require('./sockets/services/kafkaProducer');
 initKafka();
 
+// const PORT = process.env.PORT || 4000;
 
  
 

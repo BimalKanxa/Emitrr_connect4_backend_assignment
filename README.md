@@ -23,3 +23,13 @@ This is a starter backend project for a real-time Connect 4 game using Node.js, 
 - `kafka/`: Kafka producers (optional)
 - `utils/`: Helpers like win checking
 - `config/`: Database config
+
+### Game Features:-
+
+✅ Real-time multiplayer game logic
+✅ Player vs Bot fallback with strategic AI
+✅ WebSocket communication
+✅ PostgreSQL integration
+✅ Kafka setup (local)
+✅ Game analytics like game id, winner etc.
+✅ Frontend UI for gameplay & leaderboard
