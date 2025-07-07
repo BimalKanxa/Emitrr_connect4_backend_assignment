@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connect 4 - Game</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Poppins', sans-serif; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+    }
+    
+    h1 {
+      text-align: center;
+      font-size: 3rem;
+      font-weight: 700;
+      background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 30px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .game-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+    
+    #username {
+      padding: 12px 20px;
+      border: 2px solid #ddd;
+      border-radius: 25px;
+      font-size: 16px;
+      outline: none;
+      transition: all 0.3s ease;
+      min-width: 250px;
+    }
+    
+    #username:focus {
+      border-color: #4ECDC4;
+      box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.1);
+    }
+    
+    button {
+      padding: 12px 25px;
+      border: none;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:first-of-type {
+      background: linear-gradient(45deg, #FF6B6B, #FF8E8E);
+      color: white;
+    }
+    
+    button:nth-of-type(2) {
+      background: linear-gradient(45deg, #4ECDC4, #44A08D);
+      color: white;
+    }
+    
+    button:nth-of-type(3) {
+      background: linear-gradient(45deg, #FFD93D, #FF8E8E);
+      color: white;
+    }
+    
+    #status {
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .game-area {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 30px;
+      align-items: start;
+    }
+    
+    .board-container {
+      display: flex;
+      justify-content: center;
+    }
+    
+    .board { 
+      display: grid; 
+      grid-template-columns: repeat(7, 60px); 
+      gap: 8px; 
+      padding: 20px;
+      background: linear-gradient(145deg, #2c3e50, #34495e);
+      border-radius: 20px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+    }
+    
+    .cell { 
+      width: 60px; 
+      height: 60px; 
+      background: #ecf0f1;
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      font-weight: bold; 
+      cursor: pointer;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .cell:hover {
+      transform: scale(1.05);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .cell.X { 
+      background: linear-gradient(145deg, #e74c3c, #c0392b);
+      color: white;
+      box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+    }
+    
+    .cell.O { 
+      background: linear-gradient(145deg, #3498db, #2980b9);
+      color: white;
+      box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+    }
+    
+    .cell::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 0;
+      height: 0;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
+    
+    .cell:hover::before {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .leaderboard-container {
+      background: linear-gradient(145deg, #fff, #f8f9fa);
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .leaderboard-container h3 {
+      margin-bottom: 15px;
+      color: #2c3e50;
+      font-size: 1.3rem;
+      text-align: center;
+    }
+    
+    #leaderboard {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    
+    #leaderboard li {
+      padding: 10px 15px;
+      margin: 5px 0;
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      border-radius: 10px;
+      transition: all 0.3s ease;
+    }
+    
+    #leaderboard li:hover {
+      transform: translateX(5px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .log-container {
+      background: #2c3e50;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .log-container h3 {
+      margin-bottom: 15px;
+      color: #ecf0f1;
+      font-size: 1.3rem;
+      text-align: center;
+    }
+    
+    #log { 
+      white-space: pre-wrap; 
+      background: #34495e;
+      color: #ecf0f1;
+      padding: 15px;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      max-height: 300px;
+      overflow-y: auto;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    #log::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    #log::-webkit-scrollbar-track {
+      background: #2c3e50;
+      border-radius: 10px;
+    }
+    
+    #log::-webkit-scrollbar-thumb {
+      background: #4ECDC4;
+      border-radius: 10px;
+    }
+    
+    /* Game Result Modal */
+    .game-result-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      backdrop-filter: blur(5px);
+    }
+    
+    .result-card {
+      background: linear-gradient(145deg, #fff, #f8f9fa);
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      transform: scale(0.8);
+      animation: modalAppear 0.3s ease-out forwards;
+    }
+    
+    @keyframes modalAppear {
+      to {
+        transform: scale(1);
+      }
+    }
+    
+    .result-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      display: block;
+    }
+    
+    .result-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .result-message {
+      font-size: 1.2rem;
+      margin-bottom: 30px;
+      color: #666;
+    }
+    
+    .result-win {
+      background: linear-gradient(145deg, #2ecc71, #27ae60);
+      color: white;
+    }
+    
+    .result-win .result-title {
+      color: #fff;
+    }
+    
+    .result-win .result-message {
+      color: #e8f5e8;
+    }
+    
+    .result-loss {
+      background: linear-gradient(145deg, #e74c3c, #c0392b);
+      color: white;
+    }
+    
+    .result-loss .result-title {
+      color: #fff;
+    }
+    
+    .result-loss .result-message {
+      color: #f8e8e8;
+    }
+    
+    .result-draw {
+      background: linear-gradient(145deg, #f39c12, #e67e22);
+      color: white;
+    }
+    
+    .result-draw .result-title {
+      color: #fff;
+    }
+    
+    .result-draw .result-message {
+      color: #fdf2e9;
+    }
+    
+    .close-result-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 12px 30px;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .close-result-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    @media (max-width: 768px) {
+      .game-area {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      
+      .board { 
+        grid-template-columns: repeat(7, 45px); 
+        gap: 5px; 
+        padding: 15px;
+      }
+      
+      .cell { 
+        width: 45px; 
+        height: 45px; 
+      }
+      
+      h1 {
+        font-size: 2rem;
+      }
+      
+      .game-controls {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      #username {
+        min-width: 200px;
+      }
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    
+    .cell.X, .cell.O {
+      animation: pulse 0.5s ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔴 Connect 4 🔵</h1>
+
+    <div class="game-controls">
+      <input type="text" id="username" placeholder="Enter your username" />
+      <button onclick="joinGame()">Join Game</button>
+      <button onclick="reconnectGame()">Reconnect</button>
+      <button onclick="getLeaderboard()">Show Leaderboard</button>
+    </div>
+
+    <div id="status"></div>
+    
+    <div class="game-area">
+      <div class="leaderboard-container">
+        <h3>🏆 Leaderboard</h3>
+        <ul id="leaderboard"></ul>
+      </div>
+      
+      <div class="board-container">
+        <div class="board" id="board"></div>
+      </div>
+      
+      <div class="log-container">
+        <h3>📋 Game Log</h3>
+        <div id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io("http://localhost:4000");
+    let gameId = null;
+    let username = "";
+    let currentTurn = "";
+
+    const boardEl = document.getElementById("board");
+    const log = (msg) => {
+      const logBox = document.getElementById("log");
+      logBox.textContent += msg + "\n";
+      logBox.scrollTop = logBox.scrollHeight;
+    };
+
+    socket.on("connect", () => {
+      log("Connected to server: " + socket.id);
+    });
+
+    socket.on("match_found", (data) => {
+      gameId = data.gameId;
+      log("✅ Matched with: " + data.opponent);
+      document.getElementById("status").textContent = "Game ID: " + gameId;
+    });
+
+    socket.on("update_board", (data) => {
+      currentTurn = data.currentTurn;
+      drawBoard(data.board);
+      document.getElementById("status").textContent = "Current Turn: " + currentTurn;
+    });
+
+    socket.on("game_result", (data) => {
+      drawBoard(data.board);
+      showGameResult(data);
+    });
+
+    function showGameResult(data) {
+      let resultType, icon, title, message;
+      
+      if (data.draw) {
+        resultType = 'draw';
+        icon = '🤝';
+        title = 'It\'s a Draw!';
+        message = 'Great game! Both players played well.';
+      } else if (data.winner === username) {
+        resultType = 'win';
+        icon = '🎉';
+        title = 'You Win!';
+        message = 'Congratulations! You played brilliantly!';
+      } else {
+        resultType = 'loss';
+        icon = '😔';
+        title = 'You Lost!';
+        message = 'Better luck next time! Keep practicing.';
+      }
+      
+      const modal = document.createElement('div');
+      modal.className = 'game-result-modal';
+      modal.innerHTML = `
+        <div class="result-card result-${resultType}">
+          <span class="result-icon">${icon}</span>
+          <h2 class="result-title">${title}</h2>
+          <p class="result-message">${message}</p>
+          <button class="close-result-btn" onclick="closeGameResult()">Play Again</button>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Auto close after 5 seconds
+      setTimeout(() => {
+        closeGameResult();
+      }, 5000);
+    }
+    
+    function closeGameResult() {
+      const modal = document.querySelector('.game-result-modal');
+      if (modal) {
+        modal.remove();
+      }
+      
+      // Clear the board and reset game state after closing result
+      setTimeout(() => {
+        boardEl.innerHTML = "";
+        document.getElementById("username").value = "";
+        document.getElementById("status").textContent = "";
+        gameId = null;
+        username = "";
+        currentTurn = "";
+        log("🎮 Game completed! Ready for a new game.");
+      }, 500);
+    }
+
+    socket.on("reconnected", ({ board, currentTurn: ct, gameId: gid }) => {
+      gameId = gid;
+      currentTurn = ct;
+      drawBoard(board);
+      log("🔁 Reconnected to game " + gid);
+    });
+
+    socket.on("reconnect_failed", () => {
+      alert("Reconnect failed. No active game found.");
+    });
+
+    function joinGame() {
+      username = document.getElementById("username").value.trim();
+      if (!username) return alert("Enter a username");
+      socket.emit("join_game", { username });
+      log("Joining game as: " + username);
+    }
+
+    function reconnectGame() {
+      username = document.getElementById("username").value.trim();
+      if (!username) return alert("Enter your username to reconnect");
+      socket.emit("reconnect_game", { username });
+    }
+
+    function drawBoard(board) {
+      boardEl.innerHTML = "";
+      for (let row = 0; row < 6; row++) {
+        for (let col = 0; col < 7; col++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          if (board[row][col]) cell.classList.add(board[row][col]);
+          cell.textContent = board[row][col] || "";
+          cell.onclick = () => {
+            if (username === currentTurn) {
+              socket.emit("make_move", { gameId, username, column: col });
+            }
+          };
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    async function getLeaderboard() {
+      const res = await fetch("http://localhost:4000/api/leaderboard");
+      const data = await res.json();
+      const list = document.getElementById("leaderboard");
+      list.innerHTML = "";
+      data.forEach(row => {
+        const li = document.createElement("li");
+        li.textContent = `${row.winner} - ${row.wins} wins`;
+        list.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
